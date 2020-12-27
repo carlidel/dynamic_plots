@@ -368,10 +368,10 @@ def update_graph_1(*par):
             'hoverongaps': False,
             'type': 'heatmap',
             'customdata': np.dstack((
-                extra_data[0].reshape((fineness, fineness)),
-                extra_data[1].reshape((fineness, fineness)),
-                extra_data[2].reshape((fineness, fineness)),
-                extra_data[3].reshape((fineness, fineness)),
+                extra_data[0].reshape((par[6], par[6])),
+                extra_data[1].reshape((par[6], par[6])),
+                extra_data[2].reshape((par[6], par[6])),
+                extra_data[3].reshape((par[6], par[6])),
             )),
             'hovertemplate': "<br>".join([
                 "X0: %{customdata[0]:." + str(sig_digitx) + "f}",
