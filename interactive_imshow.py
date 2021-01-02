@@ -24,10 +24,10 @@ SIDEBAR_STYLE = {
 
 # the style arguments for the main content page.
 CONTENT_STYLE = {
-    'margin-left': '25%',
-    'margin-right': '5%',
+    'margin-left': '21%',
+    'margin-right': '1%',
     'top': 0,
-    'padding': '20px 10px'
+    'padding': '3px 3px'
 }
 
 TEXT_STYLE = {
@@ -41,7 +41,7 @@ CARD_TEXT_STYLE = {
 }
 
 # Heatmap dimention in pixels
-heatmap_width = 850
+heatmap_width = 700
 
 ##### SOME INITIAL VALUES #####
 fineness = 250
@@ -169,15 +169,18 @@ controls = dbc.FormGroup(
         dbc.Card([dbc.Checklist(
             id='scale',
             options=[{
-                'label': 'Log Scale',
-                'value': 'log_scale'
+                'label': 'Log Scale (L)',
+                'value': 'log_scale_l'
+            }, {
+                'label': 'Log Scale (R)',
+                'value': 'log_scale_r'
             },
                 {
                 'label': 'Update theta on drag',
                 'value': 'drag'
             }
             ],
-            value=['log_scale', 'drag'],
+            value=['log_scale_l', 'drag'],
             inline=True
         )]),
         html.Br(),
@@ -198,12 +201,24 @@ controls = dbc.FormGroup(
         ]),
 
         html.Div([
-            html.Div("N turns:"),
+            html.Div("N turns (left):"),
             html.Div(
                 dcc.Input(
-                    id="nturns",
+                    id="nturns_l",
                     type="number",
-                    placeholder="nturns",
+                    placeholder="n turns for tracking",
+                    value=n_turns_0
+                )
+            ),
+        ]),
+
+        html.Div([
+            html.Div("N turns (right):"),
+            html.Div(
+                dcc.Input(
+                    id="nturns_r",
+                    type="number",
+                    placeholder="n turns for indicator",
                     value=n_turns_0
                 )
             ),
@@ -234,31 +249,45 @@ sidebar = html.Div(
 
 ##### HEATMAP ZONE #####
 
-content_first_row = dbc.Card(
-    [
-
-        dbc.CardBody(
+content_first_row = dbc.Row(
+    [dbc.Col(
+        dbc.Card(
+        [dbc.CardBody(
             [
                 html.H4(id='card_title_1', children=['Card Title 1'], className='card-title',
                         style=CARD_TEXT_STYLE),
                 html.P(id='card_text_1', children=[
-                        'Sample text.'], style=CARD_TEXT_STYLE),
+                    'Sample text.'], style=CARD_TEXT_STYLE),
             ]
-        )
-    ]
-)
+        )]), md=6),
+    dbc.Col(
+        dbc.Card(
+            [dbc.CardBody(
+                [
+                    html.H4(id='card_title_2', children=['Card Title 1'], className='card-title',
+                            style=CARD_TEXT_STYLE),
+                    html.P(id='card_text_2', children=[
+                        'Sample text.'], style=CARD_TEXT_STYLE),
+                ]
+            )]), md=6)
+    ])
+
 
 content_second_row = dbc.Row(
     [
         dbc.Col(
-            dcc.Graph(id='graph_1', figure=fig), md=12,
+            dcc.Graph(id='graph_1', figure=fig), md=6,
+        ),
+        dbc.Col(
+            dcc.Graph(id='graph_2', figure=fig), md=6,
         )
     ]
 )
 
 content = html.Div(
     [
-        #html.H2('Heatmap', style=TEXT_STYLE),
+        html.H1('Heatmaps', style=TEXT_STYLE),
+        html.Hr(),
         #html.H2('Analytics Dashboard Template'),
         #html.Hr(),
         content_first_row,
@@ -292,11 +321,19 @@ def update_slider_th2(mode):
 
 @app.callback(
     Output('card_title_1', 'children'),
-    [Input('dyn_indicator', 'value'),
-     Input('scale', 'value')])
+    [Input('scale', 'value')])
 def update_card_text_1_title(*arg):
     """Callback for updating the card1 title"""
-    return 'Displayed Dynamic Indicator: "{}"'.format(arg[0]) + " (log10 scale)" if "log_scale" in arg[1] else " (linear scale)"
+    return 'Tracking' + (" (log10 scale)" if "log_scale_l" in arg[0] else " (linear scale)")
+
+
+@app.callback(
+    Output('card_title_2', 'children'),
+    [Input('dyn_indicator', 'value'),
+     Input('scale', 'value')])
+def update_card_text_2_title(*arg):
+    """Callback for updating the card1 title"""
+    return 'Displayed Dynamic Indicator: "{}"'.format(arg[0]) + (" (log10 scale)" if "log_scale_r" in arg[1] else " (linear scale)")
 
 
 @app.callback(
@@ -315,63 +352,106 @@ def update_card_text_1_content(*arg):
 
 
 @app.callback(
-    Output('graph_1', 'figure'),
-    [Input('graph_1', 'relayoutData'),
-     Input('dyn_indicator', 'value'),
-     #Input('alpha', 'value'),
-     Input('theta_1', 'value'),
+    Output('card_text_2', 'children'),
+    [Input('theta_1', 'value'),
      Input('theta_2', 'value'),
-     Input('view_system', 'value'),
-     Input('scale', 'value'),
-     Input('fineness', 'value'),
-     Input('nturns', 'value')
-    ]+[
-     Input("param_{}".format(i), 'value') for i in range(len(params_names))
+     Input('view_system', 'value')])
+def update_card_text_2_content(*arg):
+    """Callback for updating the card1 subtext"""
+    if arg[-1] == "x_px":
+        return "View System: X - PX plane"
+    if arg[-1] == "y_py":
+        return "View System: Y - PY plane"
+    else:
+        return "View System: r_x - r_y plane with theta1 = {}π, theta2 = {}π".format(arg[0], arg[1])
+
+
+@app.callback(
+    Output('graph_2', 'figure'),
+    [Input('graph_1', 'relayoutData'),  # 0
+     Input('graph_2', 'relayoutData'),  # 1
+     Input('dyn_indicator', 'value'),  # 2
+     Input('theta_1', 'value'),  # 3
+     Input('theta_2', 'value'),  # 4
+     Input('view_system', 'value'),  # 5
+     Input('scale', 'value'),  # 6
+     Input('fineness', 'value'),  # 7
+     Input('nturns_r', 'value')  # 8
+     ]+[  # 9:-1
+        Input("param_{}".format(i), 'value') for i in range(len(params_names))
     ],
-    [State('graph_1', 'figure')])
-def update_graph_1(*par):
+    [State('graph_2', 'figure')])  # -1
+def update_graph_2(*par):
     """General callback for updating the heatmap whenever a parameter is changed or a zoom/panning is performed."""
-    if par[0] is not None: 
+    ctx = dash.callback_context
+    print(ctx.triggered)
+    if "graph_1.relayoutData" in ctx.triggered[0]["prop_id"]:
         if 'dragmode' in par[0]:
             return par[-1]
-        if 'xaxis.range[0]' in par[0] and 'yaxis.range[0]' in par[0]:
+        if 'xaxis.range[0]' in par[0]:
             base_extent[:] = [
-                par[0]['xaxis.range[0]'], par[0]['xaxis.range[1]'], par[0]['yaxis.range[0]'], par[0]['yaxis.range[1]']]
+                par[0]['xaxis.range[0]'],
+                par[0]['xaxis.range[1]'],
+                base_extent[2],
+                base_extent[3]]
+        if 'yaxis.range[0]' in par[0]:
+            base_extent[:] = [
+                base_extent[0],
+                base_extent[1],
+                par[0]['yaxis.range[0]'],
+                par[0]['yaxis.range[1]']]
+    if "graph_2.relayoutData" in ctx.triggered[0]["prop_id"]:
+        if 'dragmode' in par[1]:
+            return par[-1]
+        if 'xaxis.range[0]' in par[1]:
+            base_extent[:] = [
+                par[1]['xaxis.range[0]'],
+                par[1]['xaxis.range[1]'],
+                base_extent[2],
+                base_extent[3]]
+        if 'yaxis.range[0]' in par[1]:
+            base_extent[:] = [
+                base_extent[0],
+                base_extent[1],
+                par[1]['yaxis.range[0]'],
+                par[1]['yaxis.range[1]']]
     extent = base_extent.copy()
 
-    if par[4] == "polar":
-        extent.append(par[2] * np.pi)
+    if par[5] == "polar":
         extent.append(par[3] * np.pi)
+        extent.append(par[4] * np.pi)
     data = recompute_data(
         extents=extent,
-        n_turns=par[7],
-        sampling=par[6],
-        params=par[8:-1],
-        method=par[4],
-        indicator=par[1]
+        n_turns=par[8],
+        sampling=par[7],
+        params=par[9:-1],
+        method=par[5],
+        indicator=par[2]
     )
 
-    if "log_scale" in par[5]:
+    if "log_scale_r" in par[6]:
         data = np.log10(data)
-        data[np.isinf(data)] = -24.0
+        data[np.isinf(data)] = np.nan
 
-    extra_data = f.compute_coords(extent, par[6], par[4])
-    
-    sig_digitx = int(np.ceil(-np.log10((extent[1] - extent[0]) / (par[6] * 2))))
-    sig_digity = int(np.ceil(-np.log10((extent[3] - extent[2]) / (par[6] * 2))))
-    
+    extra_data = f.compute_coords(extent, par[7], par[5])
+
+    sig_digitx = int(
+        np.ceil(-np.log10((extent[1] - extent[0]) / (par[7] * 2))))
+    sig_digity = int(
+        np.ceil(-np.log10((extent[3] - extent[2]) / (par[7] * 2))))
+
     fig = {
         'data': [{
             'z': data,
-            'x': np.linspace(base_extent[0], base_extent[1], par[6]),
-            'y': np.linspace(base_extent[2], base_extent[3], par[6]),
+            'x': np.linspace(base_extent[0], base_extent[1], par[7]),
+            'y': np.linspace(base_extent[2], base_extent[3], par[7]),
             'hoverongaps': False,
             'type': 'heatmap',
             'customdata': np.dstack((
-                extra_data[0].reshape((par[6], par[6])),
-                extra_data[1].reshape((par[6], par[6])),
-                extra_data[2].reshape((par[6], par[6])),
-                extra_data[3].reshape((par[6], par[6])),
+                extra_data[0].reshape((par[7], par[7])),
+                extra_data[1].reshape((par[7], par[7])),
+                extra_data[2].reshape((par[7], par[7])),
+                extra_data[3].reshape((par[7], par[7])),
             )),
             'hovertemplate': "<br>".join([
                 "X0: %{customdata[0]:." + str(sig_digitx) + "f}",
@@ -381,14 +461,120 @@ def update_graph_1(*par):
                 "Value: %{z}"
             ])
         }],
-        'layout': 
+        'layout':
             {
                 'width': heatmap_width,
                 'height': heatmap_width,
-            }
-        
+        }
+
     }
     return fig
+
+
+@app.callback(
+    Output('graph_1', 'figure'),
+    [Input('graph_1', 'relayoutData'),  # 0
+     Input('graph_2', 'relayoutData'),  # 1
+     Input('dyn_indicator', 'value'),  # 2
+     Input('theta_1', 'value'),  # 3
+     Input('theta_2', 'value'),  # 4
+     Input('view_system', 'value'),  # 5
+     Input('scale', 'value'),  # 6
+     Input('fineness', 'value'),  # 7
+     Input('nturns_l', 'value')  # 8
+     ]+[  # 9:-1
+        Input("param_{}".format(i), 'value') for i in range(len(params_names))
+    ],
+    [State('graph_1', 'figure')])  # -1
+def update_graph_1(*par):
+    """General callback for updating the heatmap whenever a parameter is changed or a zoom/panning is performed."""
+    ctx = dash.callback_context
+    print(ctx)
+    if "graph_1.relayoutData" in ctx.triggered[0]["prop_id"]:
+        if 'dragmode' in par[0]:
+            return par[-1]
+        if 'xaxis.range[0]' in par[0]:
+            base_extent[:] = [
+                par[0]['xaxis.range[0]'],
+                par[0]['xaxis.range[1]'],
+                base_extent[2],
+                base_extent[3]]
+        if 'yaxis.range[0]' in par[0]:
+            base_extent[:] = [
+                base_extent[0],
+                base_extent[1],
+                par[0]['yaxis.range[0]'],
+                par[0]['yaxis.range[1]']]
+    elif "graph_2.relayoutData" in ctx.triggered[0]["prop_id"]:
+        if 'dragmode' in par[1]:
+            return par[-1]
+        if 'xaxis.range[0]' in par[1]:
+            base_extent[:] = [
+                par[1]['xaxis.range[0]'],
+                par[1]['xaxis.range[1]'],
+                base_extent[2],
+                base_extent[3]]
+        if 'yaxis.range[0]' in par[1]:
+            base_extent[:] = [
+                base_extent[0],
+                base_extent[1],
+                par[1]['yaxis.range[0]'],
+                par[1]['yaxis.range[1]']]
+    extent = base_extent.copy()
+
+    if par[5] == "polar":
+        extent.append(par[3] * np.pi)
+        extent.append(par[4] * np.pi)
+    data = recompute_data(
+        extents=extent,
+        n_turns=par[8],
+        sampling=par[7],
+        params=par[9:-1],
+        method=par[5],
+        indicator="tracking"
+    )
+
+    if "log_scale_l" in par[6]:
+        data = np.log10(data)
+        data[np.isinf(data)] = np.nan
+
+    extra_data = f.compute_coords(extent, par[7], par[5])
+
+    sig_digitx = int(
+        np.ceil(-np.log10((extent[1] - extent[0]) / (par[7] * 2))))
+    sig_digity = int(
+        np.ceil(-np.log10((extent[3] - extent[2]) / (par[7] * 2))))
+
+    fig = {
+        'data': [{
+            'z': data,
+            'x': np.linspace(base_extent[0], base_extent[1], par[7]),
+            'y': np.linspace(base_extent[2], base_extent[3], par[7]),
+            'hoverongaps': False,
+            'type': 'heatmap',
+            'customdata': np.dstack((
+                extra_data[0].reshape((par[7], par[7])),
+                extra_data[1].reshape((par[7], par[7])),
+                extra_data[2].reshape((par[7], par[7])),
+                extra_data[3].reshape((par[7], par[7])),
+            )),
+            'hovertemplate': "<br>".join([
+                "X0: %{customdata[0]:." + str(sig_digitx) + "f}",
+                "PX0: %{customdata[1]:." + str(sig_digitx) + "f}",
+                "Y0: %{customdata[2]:." + str(sig_digity) + "f}",
+                "PY0: %{customdata[3]:." + str(sig_digity) + "f}",
+                "Value: %{z}"
+            ])
+        }],
+        'layout':
+            {
+                'width': heatmap_width,
+                'height': heatmap_width,
+        }
+
+    }
+    return fig
+
 
 ##### RUN THE SERVER #####
 app.run_server(debug=True)
