@@ -34,6 +34,8 @@ class function_wrap:
         self.param_defaults = list(param_defaults)
         
         self.i_func = {}
+        self.i_func_par_names = {}
+        self.i_func_par_defaults = {}
         self.inv_f = None
 
     def __call__(self, init_list, n_turns, *params, start_point=0):
@@ -77,7 +79,7 @@ class function_wrap:
         assert self.inv_f is not None
         return self.inv_f(init_list, n_turns, start_point, *params)
 
-    def compute_indicator(self, init_list, n_turns, *params, indicator_name=None):
+    def compute_indicator(self, init_list, n_turns, *params, indicator_name=None, **kwargs):
         """Compute the required dynamic indicator.
 
         Parameters
@@ -98,7 +100,7 @@ class function_wrap:
         if indicator_name is None:
             self.__call__(init_list, n_turns, *params)
         assert indicator_name in self.i_func
-        return self.i_func[indicator_name](init_list, n_turns, *params)
+        return self.i_func[indicator_name](init_list, n_turns, *params, **kwargs)
 
     def set_inverse(self, f):
         """Set the inverse function
@@ -123,7 +125,7 @@ class function_wrap:
         """        
         self.inv_f = None
 
-    def set_indicator(self, f, name):
+    def set_indicator(self, f, name, ind_par_names=[], ind_par_defaults=[]):
         """Add a dynamic indicator with a defined name
 
         Parameters
@@ -138,8 +140,14 @@ class function_wrap:
             And must return the resulting position in the form of a numpy array
         name : string
             the name of the indicator
+        ind_par_names : list of strings
+            name of internal parameters for the dynamic indicator
+        ind_par_defaults : list of floats
+            default values for dynamic indicator parameters
         """        
         self.i_func[name] = f
+        self.i_func_par_names[name] = ind_par_names
+        self.i_func_par_defaults[name] = ind_par_defaults
 
     def remove_indicator(self, name):
         """Remove the specified dynamic indicator
@@ -151,6 +159,8 @@ class function_wrap:
         """        
         if name in self.i_func:
             del self.i_func[name]
+            del self.i_func_par_defaults[name]
+            del self.i_func_par_names[name]
 
     def get_indicators_available(self):
         """Get the name list of the available dynamic indicators
@@ -161,6 +171,12 @@ class function_wrap:
             list of strings with the dynamic indicator names
         """        
         return list(self.i_func.keys())
+
+    def get_indicator_param_names(self, name):
+        return self.i_func_par_names[name]
+
+    def get_indicator_param_defaults(self, name):
+        return self.i_func_par_defaults[name]
 
     def get_param_names(self):
         """Get the names of the extra parameters 
@@ -225,7 +241,7 @@ class function_multi:
         actual_params = list(params) + self.f.get_param_defaults()[len(params):len(self.f.get_param_defaults())]
         return self.f(coords, n_turns, start_point, *actual_params)
 
-    def compute_indicator(self, extents, n_turns, sampling, *params, method="polar", indicator=None):
+    def compute_indicator(self, extents, n_turns, sampling, *params, method="polar", indicator=None, **kwargs):
         """Call the required dynamic indicator with the given parameters
 
         Parameters
@@ -253,7 +269,7 @@ class function_multi:
         assert len(params) <= len(self.f.get_param_names())
         coords = self.compute_coords(extents, sampling, method)
         actual_params = list(params) + self.f.get_param_defaults()[len(params):len(self.f.get_param_defaults())]
-        return self.f.compute_indicator(coords, n_turns, *actual_params, indicator_name=indicator)
+        return self.f.compute_indicator(coords, n_turns, *actual_params, indicator_name=indicator, **kwargs)
 
     def compute_coords(self, extents, sampling, method="polar"):
         if method == "polar":
@@ -313,3 +329,9 @@ class function_multi:
             list of strings
         """        
         return self.f.get_indicators_available()
+
+    def get_indicator_param_names(self, name):
+        return self.f.get_indicator_param_names(name)
+
+    def get_indicator_param_defaults(self, name):
+        return self.f.get_indicator_param_defaults(name)

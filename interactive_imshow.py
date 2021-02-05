@@ -63,8 +63,12 @@ params_defaults = f.get_param_defaults()
 
 def recompute_data(**k):
     """We will call this function for recomputing the data for the heatmap!"""
-    data = f.compute_indicator(k["extents"], k["n_turns"], k["sampling"],
-                               *k["params"], method=k["method"], indicator=k["indicator"])
+    if "dyn_par_dict" in k:
+        data = f.compute_indicator(k["extents"], k["n_turns"], k["sampling"],
+                                   *k["params"], method=k["method"], indicator=k["indicator"], **k["dyn_par_dict"])
+    else:
+        data = f.compute_indicator(k["extents"], k["n_turns"], k["sampling"],
+                                   *k["params"], method=k["method"], indicator=k["indicator"])
     return data.reshape((k["sampling"], k["sampling"]))
 
 # Make a first instance of an heatmap, properly configured.
@@ -241,6 +245,19 @@ controls = dbc.FormGroup(
                 )
             ),
         ]) for i in range(len(params_names))
+    ] + [
+        html.Div([
+            html.Div(id="param_dyn_name_{}".format(i),
+                     children="placeholder_{}".format(i)),
+            html.Div(
+                dcc.Input(
+                    id="param_dyn_{}".format(i),
+                    type="number",
+                    placeholder="placeholder_{}".format(i),
+                    value=0.0
+                )
+            ),
+        ]) for i in range(5)
     ]
 )
 
@@ -417,6 +434,141 @@ def update_slider_th2(mode):
         return "mouseup"
 
 
+@app.callback(Output('param_dyn_0', 'placeholder'), Input('dyn_indicator', 'value'))
+def update_par_dyn_0_title(dyn_indicator):
+    names = f.get_indicator_param_names(dyn_indicator)
+    if len(names) > 0:
+        return names[0]
+    else:
+        return "placeholder_0"
+
+
+@app.callback(Output('param_dyn_1', 'placeholder'), Input('dyn_indicator', 'value'))
+def update_par_dyn_1_title(dyn_indicator):
+    names = f.get_indicator_param_names(dyn_indicator)
+    if len(names) > 1:
+        return names[1]
+    else:
+        return "placeholder_1"
+
+
+@app.callback(Output('param_dyn_2', 'placeholder'), Input('dyn_indicator', 'value'))
+def update_par_dyn_2_title(dyn_indicator):
+    names = f.get_indicator_param_names(dyn_indicator)
+    if len(names) > 2:
+        return names[2]
+    else:
+        return "placeholder_2"
+
+
+@app.callback(Output('param_dyn_3', 'placeholder'), Input('dyn_indicator', 'value'))
+def update_par_dyn_3_title(dyn_indicator):
+    names = f.get_indicator_param_names(dyn_indicator)
+    if len(names) > 3:
+        return names[3]
+    else:
+        return "placeholder_3"
+
+
+@app.callback(Output('param_dyn_4', 'placeholder'), Input('dyn_indicator', 'value'))
+def update_par_dyn_4_title(dyn_indicator):
+    names = f.get_indicator_param_names(dyn_indicator)
+    if len(names) > 4:
+        return names[4]
+    else:
+        return "placeholder_4"
+
+
+@app.callback(Output('param_dyn_name_0', 'children'), Input('dyn_indicator', 'value'))
+def update_par_dyn_0_title_bis(dyn_indicator):
+    names = f.get_indicator_param_names(dyn_indicator)
+    if len(names) > 0:
+        return names[0]
+    else:
+        return "placeholder_0"
+
+
+@app.callback(Output('param_dyn_name_1', 'children'), Input('dyn_indicator', 'value'))
+def update_par_dyn_1_title_bis(dyn_indicator):
+    names = f.get_indicator_param_names(dyn_indicator)
+    if len(names) > 1:
+        return names[1]
+    else:
+        return "placeholder_1"
+
+
+@app.callback(Output('param_dyn_name_2', 'children'), Input('dyn_indicator', 'value'))
+def update_par_dyn_2_title_bis(dyn_indicator):
+    names = f.get_indicator_param_names(dyn_indicator)
+    if len(names) > 2:
+        return names[2]
+    else:
+        return "placeholder_2"
+
+
+@app.callback(Output('param_dyn_name_3', 'children'), Input('dyn_indicator', 'value'))
+def update_par_dyn_3_title_bis(dyn_indicator):
+    names = f.get_indicator_param_names(dyn_indicator)
+    if len(names) > 3:
+        return names[3]
+    else:
+        return "placeholder_3"
+
+
+@app.callback(Output('param_dyn_name_4', 'children'), Input('dyn_indicator', 'value'))
+def update_par_dyn_4_title_bis(dyn_indicator):
+    names = f.get_indicator_param_names(dyn_indicator)
+    if len(names) > 4:
+        return names[4]
+    else:
+        return "placeholder_4"
+
+
+@app.callback(Output('param_dyn_0', 'value'), Input('dyn_indicator', 'value'))
+def update_par_dyn_0_value(dyn_indicator):
+    values = f.get_indicator_param_defaults(dyn_indicator)
+    if len(values) > 0:
+        return values[0]
+    else:
+        return 0.0
+
+
+@app.callback(Output('param_dyn_1', 'value'), Input('dyn_indicator', 'value'))
+def update_par_dyn_1_value(dyn_indicator):
+    values = f.get_indicator_param_defaults(dyn_indicator)
+    if len(values) > 1:
+        return values[1]
+    else:
+        return 0.0
+
+
+@app.callback(Output('param_dyn_2', 'value'), Input('dyn_indicator', 'value'))
+def update_par_dyn_2_value(dyn_indicator):
+    values = f.get_indicator_param_defaults(dyn_indicator)
+    if len(values) > 2:
+        return values[2]
+    else:
+        return 0.0
+
+
+@app.callback(Output('param_dyn_3', 'value'), Input('dyn_indicator', 'value'))
+def update_par_dyn_3_value(dyn_indicator):
+    values = f.get_indicator_param_defaults(dyn_indicator)
+    if len(values) > 3:
+        return values[3]
+    else:
+        return 0.0
+
+
+@app.callback(Output('param_dyn_4', 'value'), Input('dyn_indicator', 'value'))
+def update_par_dyn_4_value(dyn_indicator):
+    values = f.get_indicator_param_defaults(dyn_indicator)
+    if len(values) > 4:
+        return values[4]
+    else:
+        return 0.0
+
+
 @app.callback(
     Output('card_title_1', 'children'),
     [Input('scale', 'value')])
@@ -475,7 +627,11 @@ def update_card_text_2_content(*arg):
      Input('scale', 'value'),  # 6
      Input('fineness', 'value'),  # 7
      Input('nturns_r', 'value')  # 8
-     ]+[  # 9:-1
+     ]+[  # 9:13
+        Input("param_dyn_{}".format(i), 'value') for i in range(5)
+     ]+[  # 14:18
+        Input("param_dyn_{}".format(i), 'placeholder') for i in range(5)
+     ]+[  # 19:-1
         Input("param_{}".format(i), 'value') for i in range(len(params_names))
     ],
     [State('graph_2', 'figure')])  # -1
@@ -521,9 +677,16 @@ def update_graph_2(*par):
         extents=extent,
         n_turns=par[8],
         sampling=par[7],
-        params=par[9:-1],
+        params=par[19:-1],
         method=par[5],
-        indicator=par[2]
+        indicator=par[2],
+        dyn_par_dict={
+            par[14]: par[9],
+            par[15]: par[10],
+            par[16]: par[11],
+            par[17]: par[12],
+            par[18]: par[13],
+        }
     )
 
     data_list = data.tolist()
@@ -618,6 +781,13 @@ def update_hist_2(*par):
 
     fig_h = go.Figure(
         data=[go.Histogram(x=data.flatten(), histnorm='probability')]
+    )
+    fig_h.update_layout(
+        title="Stability histogram (intervals selected on right)",
+        xaxis_title="D.I. value" +
+        (" [log10]" if "log_scale_r" in par[7] else " [linear]"),
+        yaxis_title="Occurrences",
+        legend_title="Intervals",
     )
     return fig_h
 
@@ -774,6 +944,13 @@ def update_hist_1(*par):
     fig_h = go.Figure(
         data=[go.Histogram(x=data.flatten(), histnorm='probability')]
     )
+    fig_h.update_layout(
+        title="Stability histogram (intervals selected on right)",
+        xaxis_title="Stability time" +
+        (" [log10]" if "log_scale_l" in par[7] else " [linear]"),
+        yaxis_title="Occurrences",
+        legend_title="Intervals",
+    )
     return fig_h
 
 
@@ -875,8 +1052,8 @@ def update_slider_hist_left(*par):
 
     fig.update_layout(
         title="Stability histogram (selected intervals)",
-        xaxis_title="Stability value" +
-        (" [linear]" if "log_scale_l" in par[2] else " [log10]"),
+        xaxis_title="Stability time" +
+        (" [log10]" if "log_scale_l" in par[2] else " [linear]"),
         yaxis_title="Occurrences",
         legend_title="Intervals",
     )
@@ -932,7 +1109,7 @@ def update_slider_hist_right(*par):
     fig.update_layout(
         title="Dynamic indicator (ranges selected on the left)",
         xaxis_title="D.I. value" +
-        (" [linear]" if "log_scale_l" in par[2] else " [log10]"),
+        (" [log10]" if "log_scale_r" in par[3] else " [linear]"),
         yaxis_title="Occurrences",
         legend_title="Intervals",
     )
@@ -1038,7 +1215,7 @@ def update_slider_hist_right_2(*par):
     fig.update_layout(
         title="Dynamic Indicator (selected intervals)",
         xaxis_title="D.I. value" +
-        (" [linear]" if "log_scale_l" in par[2] else " [log10]"),
+        (" [log10]" if "log_scale_r" in par[2] else " [linear]"),
         yaxis_title="Occurrences",
         legend_title="Intervals",
     )
@@ -1092,8 +1269,8 @@ def update_slider_hist_left_2(*par):
     fig.update_traces(opacity=0.75)
     fig.update_layout(
         title="Stability histogram (intervals selected on right)",
-        xaxis_title="Stability value" +
-        (" [linear]" if "log_scale_l" in par[2] else " [log10]"),
+        xaxis_title="Stability time" +
+        (" [log10]" if "log_scale_l" in par[3] else " [linear]"),
         yaxis_title="Occurrences",
         legend_title="Intervals",
     )
