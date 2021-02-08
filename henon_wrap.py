@@ -11,6 +11,18 @@ from numpy.linalg.linalg import LinAlgError
 from function_wrap import function_wrap, function_multi
 
 
+def faddeev_leverrier(m, grade):
+    assert grade > 0
+    step = 1
+    B = m.copy()
+    p = np.trace(B, axis1=1, axis2=2)
+    while step != grade:
+        step += 1
+        B = np.matmul(m, B - np.array([np.identity(B.shape[-1]) for i in range(B.shape[0])]) * p[:,None,None])
+        p = np.trace(B, axis1=1, axis2=2) * (1 / step)
+    return p * ((-1) ** (grade + 1))
+
+
 def henon_call(init_list, n_turns, start_point, epsilon, mu, **kwargs):
     engine = hm.partial_track.generate_instance(
         init_list[0],
@@ -66,6 +78,62 @@ def henon_inverse_error(init_list, n_turns, epsilon, mu, **kwargs):
         + np.power(init_list[3] - py, 2)
     )
     return data
+
+
+def henon_inverse_error_grade(init_list, n_turns, epsilon, mu, **kwargs):
+    if "grade" not in kwargs:
+        grade = 1
+    else:
+        grade = kwargs["grade"]
+    if "kick_magnitude" not in kwargs:
+        kick_magnitude = 1e-14
+    else:
+        kick_magnitude = kwargs["kick_magnitude"]
+
+    if not((mu is None) or (mu == 0.0)):
+        raise NotImplementedError
+    engine = hm.partial_track.generate_instance(
+        init_list[0],
+        init_list[1],
+        init_list[2],
+        init_list[3],
+    )
+    for i in range(n_turns):
+        engine.compute(1, epsilon)
+        alpha = np.random.uniform(0, np.pi/2, len(init_list[0]))
+        th1 = np.random.uniform(0, np.pi*2, len(init_list[0]))
+        th2 = np.random.uniform(0, np.pi*2, len(init_list[0]))
+        engine.add_kick(
+            kick_magnitude * np.cos(alpha) * np.cos(th1),
+            kick_magnitude * np.cos(alpha) * np.sin(th1),
+            kick_magnitude * np.sin(alpha) * np.cos(th2),
+            kick_magnitude * np.sin(alpha) * np.sin(th2)
+        )
+    for i in range(n_turns):
+        x, px, y, py, _ = engine.inverse_compute(1, epsilon)
+        alpha = np.random.uniform(0, np.pi/2, len(init_list[0]))
+        th1 = np.random.uniform(0, np.pi*2, len(init_list[0]))
+        th2 = np.random.uniform(0, np.pi*2, len(init_list[0]))
+        engine.add_kick(
+            kick_magnitude * np.cos(alpha) * np.cos(th1),
+            kick_magnitude * np.cos(alpha) * np.sin(th1),
+            kick_magnitude * np.sin(alpha) * np.cos(th2),
+            kick_magnitude * np.sin(alpha) * np.sin(th2)
+        )
+    
+    matrix = np.transpose(np.array([
+        [(x - init_list[0])**2, (x - init_list[1])**2,
+         (x - init_list[2])**2, (x - init_list[3])**2],
+        [(px - init_list[0])**2, (px - init_list[1])**2,
+         (px - init_list[2])**2, (px - init_list[3])**2],
+        [(y - init_list[0])**2, (y - init_list[1])**2,
+         (y - init_list[2])**2, (y - init_list[3])**2],
+        [(py - init_list[0])**2, (py - init_list[1])**2,
+         (py - init_list[2])**2, (py - init_list[3])**2],
+    ]), axes=(2, 0, 1)) / kick_magnitude
+    
+    return faddeev_leverrier(matrix, grade)
+
 
 
 def henon_inverse_error_with_forward_kick(init_list, n_turns, epsilon, mu, **kwargs):
@@ -240,18 +308,6 @@ def henon_invariant_lyapunov(init_list, n_turns, epsilon, mu, **kwargs):
     return np.sqrt(henon_lyapunov_square_error(init_list, n_turns, epsilon, mu, **kwargs))
 
 
-def faddeev_leverrier(m, grade):
-    assert grade > 0
-    step = 1
-    B = m.copy()
-    p = np.trace(B, axis1=1, axis2=2)
-    while step != grade:
-        step += 1
-        B = np.matmul(m, B - np.array([np.identity(B.shape[-1]) for i in range(B.shape[0])]) * p[:,None,None])
-        p = np.trace(B, axis1=1, axis2=2) * (1 / step)
-    return p * ((-1) ** (grade + 1))
-
-
 def henon_invariant_lyapunov_spec_grade(init_list, n_turns, epsilon, mu, **kwargs):
     if "initial_err" not in kwargs:
         initial_err = 1e-12
@@ -389,7 +445,7 @@ def interpolation(data, indices):
         if np.any(np.isnan(data[:, i])):
             values[i] = np.nan
         elif indices[i] == 0:
-            values[i] = np.nan
+            values[i] = 1
         else:
             #if indices[i] == 0:
             #    indices[i] += 1
@@ -419,7 +475,7 @@ def interpolation(data, indices):
             #print(nn)
             #print(values[i] * len(data))
             #print("-------------")
-    return values
+    return np.absolute(1 - values)
 
 
 def henon_tune_map_x(init_list, n_turns, epsilon, mu, **kwargs):
@@ -447,6 +503,42 @@ def henon_tune_map_y(init_list, n_turns, epsilon, mu, **kwargs):
         init_list[2],
         init_list[3],
     )
+    _, _, y, py = engine.compute(n_turns, epsilon, mu, full_track=True)
+    signal = y + 1j * py
+    fft = np.absolute(np.fft.fft(
+        signal * np.hanning(signal.shape[0])[:, None], axis=0))
+    data1 = np.argmax(fft, axis=0)  # / n_turns
+    data1 = interpolation(fft, data1)
+    return data1
+
+
+def henon_tune_map_x_skip(init_list, n_turns, epsilon, mu, **kwargs):
+    n_turns = prev_2_pow(n_turns)
+    engine = hm.partial_track.generate_instance(
+        init_list[0],
+        init_list[1],
+        init_list[2],
+        init_list[3],
+    )
+    engine.compute(n_turns, epsilon, mu)
+    x, px, _, _ = engine.compute(n_turns, epsilon, mu, full_track=True)
+    signal = x + 1j * px
+    fft = np.absolute(np.fft.fft(
+        signal * np.hanning(signal.shape[0])[:, None], axis=0))
+    data1 = np.argmax(fft, axis=0)  # / n_turns
+    data1 = interpolation(fft, data1)
+    return data1
+
+
+def henon_tune_map_y_skip(init_list, n_turns, epsilon, mu, **kwargs):
+    n_turns = prev_2_pow(n_turns)
+    engine = hm.partial_track.generate_instance(
+        init_list[0],
+        init_list[1],
+        init_list[2],
+        init_list[3],
+    )
+    engine.compute(n_turns, epsilon, mu)
     _, _, y, py = engine.compute(n_turns, epsilon, mu, full_track=True)
     signal = y + 1j * py
     fft = np.absolute(np.fft.fft(
@@ -973,6 +1065,11 @@ henon_wrap.set_indicator(
     [1e-14])
 henon_wrap.set_indicator(henon_inverse_error, "inversion error")
 henon_wrap.set_indicator(
+    henon_inverse_error_grade,
+    "inversion error (invariant)",
+    ["grade", "kick_magnitude"],
+    [1, 1e-14])
+henon_wrap.set_indicator(
     henon_inverse_error_with_forward_kick,
     "inversion error with kick",
     ["kick_magnitude"],
@@ -987,6 +1084,8 @@ henon_wrap.set_indicator(
     [3, 5, 0.001])
 henon_wrap.set_indicator(henon_tune_map_x, "tune x")
 henon_wrap.set_indicator(henon_tune_map_y, "tune y")
+henon_wrap.set_indicator(henon_tune_map_x_skip, "tune x with skip")
+henon_wrap.set_indicator(henon_tune_map_y_skip, "tune y with skip")
 henon_wrap.set_indicator(
     henon_sali, 
     "SALI", 
